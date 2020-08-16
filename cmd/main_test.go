@@ -8,6 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	difficulty = 1
+	miners = 1
+}
+
 func TestCreateBlockchain(t *testing.T) {
 	// Arrange
 	now, _ := time.Parse(time.RFC3339, "2020-08-10T00:00:00.000Z")

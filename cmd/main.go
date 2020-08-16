@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,17 +23,38 @@ type Block struct {
 	Nonce        int
 }
 
-var difficulty int = 1
+// How difficult and time-consuming it is to find the right hash for each block. (1 = easiest)
+var difficulty = 1
 
-func calculateHash(block Block) string {
-	data := block.Timestamp + block.Data + block.PreviousHash + strconv.Itoa(block.Nonce)
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:])
+// Defines the number of concurrent mining threads. (1 = no concurrency)
+var miners = 1
+
+func createBlockchain(timestamp time.Time) []Block {
+	genesisBlock := Block{}
+	genesisBlock.Timestamp = timestamp.Format(time.RFC3339)
+	genesisBlock.PreviousHash = strings.Repeat("0", 64)
+	genesisBlock.Data = genesisBlockData
+	genesisBlock.Nonce = 0
+
+	blockchain := make([]Block, 0, 10)
+
+	addBlock(&blockchain, genesisBlock)
+
+	return blockchain
 }
 
-func getLatestBlock(blockchain []Block) Block {
-	// ASSUMPTION: Blockchain has at least 1 (genesis) block
-	return blockchain[len(blockchain)-1]
+func createBlock(timestamp time.Time, data string, previousBlock Block) (block Block, err error) {
+	if len(data) == 0 {
+		err = errors.New("Cannot create a block with no data")
+		return
+	}
+
+	block = Block{}
+	block.Timestamp = timestamp.Format(time.RFC3339)
+	block.PreviousHash = previousBlock.Hash
+	block.Data = data
+	block.Nonce = 0
+	return
 }
 
 func isBlockchainValid(blockchain []Block) bool {
@@ -62,48 +85,6 @@ func isBlockchainValid(blockchain []Block) bool {
 	return true
 }
 
-func createBlockchain(timestamp time.Time) []Block {
-	genesisBlock := Block{}
-	genesisBlock.Timestamp = timestamp.Format(time.RFC3339)
-	genesisBlock.PreviousHash = strings.Repeat("0", 64)
-	genesisBlock.Data = genesisBlockData
-	genesisBlock.Nonce = 0
-
-	blockchain := make([]Block, 0, 10)
-
-	addBlock(&blockchain, genesisBlock)
-
-	return blockchain
-}
-
-func createBlock(timestamp time.Time, data string, previousBlock Block) (block Block, err error) {
-	if len(data) == 0 {
-		err = errors.New("Cannot create a block with no data")
-		return
-	}
-
-	block = Block{}
-	block.Timestamp = timestamp.Format(time.RFC3339)
-	block.PreviousHash = previousBlock.Hash
-	block.Data = data
-	block.Nonce = 0
-	return
-}
-
-func mineBlock(block Block) Block {
-	targetHashPrefix := strings.Repeat("0", difficulty)
-
-	for {
-		block.Hash = calculateHash(block)
-
-		if strings.HasPrefix(block.Hash, targetHashPrefix) {
-			return block
-		}
-
-		block.Nonce++
-	}
-}
-
 func addBlock(blockchain *[]Block, block Block) (err error) {
 	minedBlock := mineBlock(block)
 
@@ -114,6 +95,72 @@ func addBlock(blockchain *[]Block, block Block) (err error) {
 
 	*blockchain = candidateBlockchain
 	return
+}
+
+func mineBlock(block Block) Block {
+	if miners <= 1 {
+		targetHashPrefix := strings.Repeat("0", difficulty)
+
+		for {
+			block.Hash = calculateHash(block)
+			if strings.HasPrefix(block.Hash, targetHashPrefix) {
+				return block
+			}
+			block.Nonce++
+		}
+	} else {
+		result := make(chan Block, miners)
+		var wg sync.WaitGroup
+		var stop uint32 = 0
+
+		for i := 0; i < miners; i++ {
+			wg.Add(1)
+			go concurrentMineBlock(block, miners, result, &stop, &wg)
+			block.Nonce++ // every miner starts with a different nonce
+		}
+
+		wg.Wait()
+		close(result)
+
+		return <-result
+	}
+}
+
+func concurrentMineBlock(block Block, nonceIncrementStep int, result chan Block, stop *uint32, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	isMiningRunning := func() bool {
+		return atomic.LoadUint32(stop) == 0
+	}
+
+	stopMining := func() {
+		atomic.StoreUint32(stop, 1)
+	}
+
+	targetHashPrefix := strings.Repeat("0", difficulty)
+
+	for isMiningRunning() {
+		block.Hash = calculateHash(block)
+
+		if strings.HasPrefix(block.Hash, targetHashPrefix) {
+			result <- block
+			stopMining()
+			break
+		}
+
+		block.Nonce = block.Nonce + nonceIncrementStep
+	}
+}
+
+func calculateHash(block Block) string {
+	data := block.Timestamp + block.Data + block.PreviousHash + strconv.Itoa(block.Nonce)
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
+
+func getLatestBlock(blockchain []Block) Block {
+	// ASSUMPTION: Blockchain has at least 1 (genesis) block
+	return blockchain[len(blockchain)-1]
 }
 
 func dumpBlockchain(blockchain []Block) {
