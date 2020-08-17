@@ -23,10 +23,10 @@ type Block struct {
 	Nonce        int
 }
 
-// How difficult and time-consuming it is to find the right hash for each block. (1 = easiest)
+// Difficulty sets how difficult mining is. (1 = easiest)
 var difficulty = 1
 
-// Defines the number of concurrent mining threads. (1 = no concurrency)
+// Miners sets the number of concurrent mining threads. (1 = no concurrency)
 var miners = 1
 
 func createBlockchain(timestamp time.Time) []Block {
@@ -58,17 +58,17 @@ func createBlock(timestamp time.Time, data string, previousBlock Block) (block B
 }
 
 func isBlockchainValid(blockchain []Block) bool {
-	// Empty blockchain is not valid
+	// A valid blockchain contains at least one block
 	if len(blockchain) == 0 {
 		return false
 	}
 
-	// Validate the genesis block
+	// Validate the genesis (first) block
 	if len(blockchain) > 0 && blockchain[0].Data != genesisBlockData {
 		return false
 	}
 
-	// Validate the subsequent blocks
+	// Validate next blocks
 	for i := 1; i < len(blockchain); i++ {
 		currentBlock := blockchain[i]
 		previousBlock := blockchain[i-1]
@@ -86,11 +86,13 @@ func isBlockchainValid(blockchain []Block) bool {
 }
 
 func addBlock(blockchain *[]Block, block Block) (err error) {
+	// A new block must be "mined" before to be added to the blockchain. Mining is a proof-of-work (https://en.wikipedia.org/wiki/Proof_of_work)
 	minedBlock := mineBlock(block)
 
 	candidateBlockchain := append(*blockchain, minedBlock)
 	if isBlockchainValid(candidateBlockchain) == false {
-		return errors.New("Invalid block (Previous hash is inconsistent with the chain). Blockchain was not updated")
+		// If the mined block is inconsistent, the blockchain is not updated
+		return errors.New("Invalid block (Previous hash is inconsistent). Blockchain was not updated")
 	}
 
 	*blockchain = candidateBlockchain
@@ -98,17 +100,23 @@ func addBlock(blockchain *[]Block, block Block) (err error) {
 }
 
 func mineBlock(block Block) Block {
+	// Mining is guessing the Block.Nonce until a Block.Hash that matches the targetHashPrefix is found
+
 	if miners <= 1 {
+		// difficulty defines the number of 0s leading the hash. The higher difficulty, the more time-consuming
 		targetHashPrefix := strings.Repeat("0", difficulty)
 
 		for {
 			block.Hash = calculateHash(block)
+
 			if strings.HasPrefix(block.Hash, targetHashPrefix) {
 				return block
 			}
+
 			block.Nonce++
 		}
 	} else {
+		// Depending on the hardware, concurrency could speed up mining
 		result := make(chan Block, miners)
 		var wg sync.WaitGroup
 		var stop uint32 = 0
@@ -116,7 +124,7 @@ func mineBlock(block Block) Block {
 		for i := 0; i < miners; i++ {
 			wg.Add(1)
 			go concurrentMineBlock(block, miners, result, &stop, &wg)
-			block.Nonce++ // every miner starts with a different nonce
+			block.Nonce++ // Every miner starts with a different nonce
 		}
 
 		wg.Wait()
