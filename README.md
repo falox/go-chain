@@ -2,10 +2,10 @@
 
 A [blockchain](https://en.wikipedia.org/wiki/Blockchain) is a list of records, called *blocks*, that are linked using cryptography. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data.
 
-*go-chain* implements some typical Blockchain data structures and algorithms in Go:
+*go-chain* implements some typical blockchain data structures and algorithms in Go:
 
 - Blocks
-- Proof-of-work (PoW)
+- Proof-of-Work (PoW)
 - Blockchain validation (prevents tampering)
 - Concurrent mining
 
