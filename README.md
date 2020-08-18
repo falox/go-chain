@@ -25,13 +25,13 @@ You can run the program with:
 
 ```bash
 cd cmd
-go run main.go
+go run .
 ```
 
 You can run the unit tests with:
 
 ```bash
-go test main_test.go
+go test -v .
 ```
 
 ### Mining parameters
