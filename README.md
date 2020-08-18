@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/falox/go-chain.svg?branch=master)](https://travis-ci.com/falox/go-chain)
+
 # go-chain, a blockchain implementation in Go
 
 A [blockchain](https://en.wikipedia.org/wiki/Blockchain) is a list of records, called *blocks*, that are linked using cryptography. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data.
@@ -24,14 +26,13 @@ git clone https://github.com/falox/go-chain.git
 You can run the program with:
 
 ```bash
-cd cmd
-go run .
+go run ./...
 ```
 
 You can run the unit tests with:
 
 ```bash
-go test -v .
+go test -v ./...
 ```
 
 ### Mining parameters
