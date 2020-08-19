@@ -37,7 +37,7 @@ go test -v ./...
 
 ### Mining parameters
 
-You can change the difficulty of the proof-of-work algorithm by editing the `difficulty` global variable
+You can change the difficulty of the proof-of-work algorithm by editing the `difficulty` global variable:
 
 ```go
 var difficulty = 2
