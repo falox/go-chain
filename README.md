@@ -1,4 +1,6 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/falox/go-chain)](https://goreportcard.com/report/github.com/falox/go-chain)
 [![Build Status](https://travis-ci.com/falox/go-chain.svg?branch=master)](https://travis-ci.com/falox/go-chain)
+[![License](https://img.shields.io/github/license/falox/go-chain.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 # go-chain, a blockchain implementation in Go
 
